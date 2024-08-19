@@ -8,6 +8,16 @@
 __attribute__((section(".firmwarecontrolbyte")))
 const uint8_t firmwarecontrolbyte = 0x7F; //8-byte pages, no ROM sensor support.
 
+
+/*
+   ISR placeholder for TimerA0
+*/
+void __attribute__((section("__interrupt_vector_13")))
+__interrupt_vector_timer0_a0(void)
+{
+    // ISR code here
+}
+
 /* 
    This vendor function allows for a raw read of words from an
    address.  It is roughly like the A3 command found in the
