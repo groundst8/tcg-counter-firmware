@@ -16,7 +16,7 @@ CC= msp430-elf-gcc -mmcu=rf430frl152h -Wall \
 	-Wno-unused-but-set-variable \
 	-I. -I/home/nick/ti/msp430-gcc/include -Os -Wl,--no-gc-sections -nostartfiles
 
-APPS = tcg_counter.txt timer_register.txt
+APPS = tcg_counter.txt timer_register.txt timer_a0_vector.txt
 
 all: $(APPS)
 
