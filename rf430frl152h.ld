@@ -362,5 +362,5 @@ SECTIONS
 /****************************************************************************/
 
 INCLUDE rf430frl152h_symbols.ld
-INCLUDE ../rom/symbols.ld
+INCLUDE ./rom/symbols.ld
 
