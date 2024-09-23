@@ -36,6 +36,8 @@ jobs:
           # Make the installer executable
           chmod +x msp430-gcc-full-linux-x64-installer-9.3.1.2.run
           sudo ./msp430-gcc-full-linux-x64-installer-9.3.1.2.run --mode unattended --prefix /home/runner/msp430-gcc
+          # Adjust permissions of the installation directory
+          sudo chmod -R a+rX /home/runner/msp430-gcc
 
       - name: Add MSP430-GCC to PATH
         run: echo "/home/runner/msp430-gcc/bin" >> $GITHUB_PATH
