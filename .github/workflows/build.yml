@@ -1,0 +1,22 @@
+name: Build MSP430 Project
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-msp430 gdb-msp430 msp430-libc binutils-msp430
+
+      - name: Build Project
+        run: make
