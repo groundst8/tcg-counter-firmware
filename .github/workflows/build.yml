@@ -18,7 +18,7 @@ jobs:
         id: cache-msp430
         uses: actions/cache@v3
         with:
-          path: /opt/msp430-gcc
+          path: /home/runner/msp430-gcc
           key: msp430-gcc
           restore-keys: |
             msp430-gcc
@@ -35,10 +35,10 @@ jobs:
           7z x msp430-gcc-full-linux-x64-installer-9.3.1.2.7z
           # Make the installer executable
           chmod +x msp430-gcc-full-linux-x64-installer-9.3.1.2.run
-          sudo ./msp430-gcc-full-linux-x64-installer-9.3.1.2.run --mode unattended --prefix /opt/msp430-gcc
+          sudo ./msp430-gcc-full-linux-x64-installer-9.3.1.2.run --mode unattended --prefix /home/runner/msp430-gcc
 
       - name: Add MSP430-GCC to PATH
-        run: echo "/opt/msp430-gcc/bin" >> $GITHUB_PATH
+        run: echo "/home/runner/msp430-gcc/bin" >> $GITHUB_PATH
 
       - name: Build Project
         run: make

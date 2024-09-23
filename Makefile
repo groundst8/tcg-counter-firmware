@@ -14,7 +14,7 @@
 # GCC 8.2
 CC= msp430-elf-gcc -mmcu=rf430frl152h -Wall \
 	-Wno-unused-but-set-variable \
-	-I. -I/opt/msp430-gcc/include -Os -Wl,--no-gc-sections -nostartfiles
+	-I. -I/home/runner/msp430-gcc/include -Os -Wl,--no-gc-sections -nostartfiles
 
 APPS = tcg_counter.txt timer_register.txt timer_a0_vector.txt main.txt
 
