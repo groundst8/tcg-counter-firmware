@@ -30,3 +30,11 @@ jobs:
 
       - name: Build Project
         run: make
+
+      - name: Upload Output Files
+        uses: actions/upload-artifact@v3
+        with:
+          name: Output Files
+          path: |
+            **/*.txt
+            **/*.hex
