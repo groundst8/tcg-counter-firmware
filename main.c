@@ -91,7 +91,7 @@ int main(void)
     DeviceInit();
 
     // set output direction
-    P1DIR |= BIT0 & BIT1;
+    P1DIR |= BIT0 | BIT1;
 
     while (1)
     {
