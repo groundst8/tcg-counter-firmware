@@ -6,6 +6,7 @@
 #define FRAM_LOCK_BLOCK_AREA_SIZE  						38
 #define FRAM_LOCK_BLOCKS								0xF840  //Address of ISO15693 lock blocks
 
+// macro instead of linker config for now
 #define DS (*(volatile uint8_t *)0x1C00)
 
 
@@ -52,6 +53,7 @@ void DeviceInit(void)
 	P1SEL0 = 0x00; //no JTAG
 	P1SEL1 = 0x00; //no JTAG
 
+    // TODO: figure out why not all set to inputs
     P1DIR &= ~0xEF;
     P1REN = 0;
 
@@ -88,11 +90,22 @@ int main(void)
     // JTAG is set to be disabled in this function call
     DeviceInit();
 
+    // set output direction
+    P1DIR |= BIT0 & BIT1;
+
     while (1)
     {
+        // generate test square waves on P1.0 and P1.1
+        P1OUT |= BIT1;
+        P1OUT &= ~BIT0;
+        __delay_cycles(200000);
+        P1OUT |= BIT0;
+        P1OUT &= ~BIT1;
+        __delay_cycles(200000);
+
         // Enter application code here...
         // Enter low-power mode 3 (LPM3) with interrupts enabled
-        __bis_SR_register(LPM3_bits | GIE);
+        //__bis_SR_register(LPM3_bits | GIE);
     }
 
     // Return statement to prevent compiler warnings
