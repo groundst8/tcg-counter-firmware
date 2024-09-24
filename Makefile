@@ -12,23 +12,43 @@
 # have room to abstract away complicated libraries.
 
 # GCC 8.2
-CC= msp430-elf-gcc -mmcu=rf430frl152h -Wall \
-	-Wno-unused-but-set-variable \
-	-I. -I/home/runner/msp430-gcc/include -Os -Wl,--no-gc-sections
 
-APPS = tcg_counter.txt timer_register.txt timer_a0_vector.txt main.txt
+# Compiler and Flags
+CC = msp430-elf-gcc
 
+# Compiler Flags
+CFLAGS = -mmcu=rf430frl152h -Wall \
+         -Wno-unused-but-set-variable \
+         -I. -I/home/runner/msp430-gcc/include \
+         -Os
+
+# Linker Flags
+LDFLAGS = -Wl,--no-gc-sections -T rf430frl152h.ld
+
+# Application files
+APPS = main.txt
+
+# Default target
 all: $(APPS)
 
-## General linking for applications.
-%.elf: %.c
-	$(CC)  $(CFLAGS) $< -o $@
+# Link object files to create ELF
+%.elf: %.o
+	$(CC) $(CFLAGS) $< -o $@ $(LDFLAGS)
 
+# Convert ELF to HEX
 %.hex: %.elf
 	msp430-elf-objcopy $< -O ihex $@
+
+# Convert HEX to TXT
 %.txt: %.hex
 	srec_cat $< -Intel -Output $@ -Texas_Instruments_TeXT
 
+# Compile C files to object files
+%.o: %.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# Clean targets
 .PHONY: clean
 clean:
-	rm -f *.elf *.hex *.txt
+	rm -f *.elf *.hex *.txt *.o
+
