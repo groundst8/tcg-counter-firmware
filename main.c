@@ -35,12 +35,14 @@ __attribute__((section(".firmwarecontrolbyte")))
 const uint8_t firmwarecontrolbyte = 0x7F;
 
 // Define the ISR for rfpmm vector that jumps to the ROM ISR
+/*
 __attribute__((interrupt("interrupt_vector_rfpmm")))
 void RF13M_ISR(void)
 {
     // Assembly instruction to jump to the ROM ISR
     __asm__ volatile ("jmp 0x54D0");
 }
+*/
 
 
 void initISO15693(uint16_t parameters)
