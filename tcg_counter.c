@@ -2,6 +2,8 @@
 #include <stdint.h>
 #include "rom.h"
 
+uint8_t segment_to_bits(uint8_t segment);
+
 /* We need to specify the Firmware Control Byte, which decides such
    things as the block size and whether the ROM is handling the sensor
    acquisition, or just the networking stack. */
