@@ -26,7 +26,7 @@ CFLAGS = -mmcu=rf430frl152h -Wall \
 LDFLAGS = -Wl,--no-gc-sections -T rf430frl152h.ld
 
 # Application files
-APPS = main.txt
+APPS = main.txt tcg_counter.txt
 
 # Default target
 all: $(APPS)

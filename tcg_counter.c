@@ -8,16 +8,6 @@
 __attribute__((section(".firmwarecontrolbyte")))
 const uint8_t firmwarecontrolbyte = 0x7F; //8-byte pages, no ROM sensor support.
 
-
-/*
-   ISR placeholder for TimerA0
-*/
-void __attribute__((section("__interrupt_vector_13")))
-__interrupt_vector_timer0_a0(void)
-{
-    // ISR code here
-}
-
 /* 
    This vendor function allows for a raw read of words from an
    address.  It is roughly like the A3 command found in the
@@ -95,6 +85,91 @@ uint16_t __attribute__ ((noinline)) cmd_a3(){
   return 0;
 }
 
+uint16_t __attribute__ ((noinline)) cmd_segment_on(){
+  uint8_t segment;
+  // CRC_LENGTH + 1 byte expected
+  if( RF13MFIFOFL_L == 2 + 1) {
+
+    // pull one byte from the recieve FIFO
+    segment=RF13MRXF_L;
+
+    uint8_t bits = segment_to_bits(segment);
+
+    // set output direction
+    P1DIR |= bits | BIT0;
+    // set specified segment 1.5V, set segment z common electrode = 0V
+    P1OUT = (P1OUT & ~BIT0) | bits;
+    
+    //Zero byte for success.
+    RF13MTXF_L = 0;
+    
+  } else {
+    // Error
+    RF13MRXF=1;
+  }
+
+  return 0;
+}
+
+uint16_t __attribute__ ((noinline)) cmd_segment_off(){
+  uint8_t segment;
+
+  // CRC_LENGTH + 1 byte expected
+  if( RF13MFIFOFL_L == 2 + 1) {
+
+    // pull one byte from the recieve FIFO
+    segment=RF13MRXF_L;
+
+    uint8_t bits = segment_to_bits(segment);
+    
+    // set output direction
+    P1DIR |= bits | BIT0;
+    // set specified segment 0V, set segment z common electrode = 1.5V
+    P1OUT = (P1OUT & ~bits) | BIT0;
+
+    //Zero byte for success.
+    RF13MTXF_L = 0;
+    
+  } else {
+    // Error
+    RF13MRXF=1;
+  }
+
+  return 0;
+}
+
+uint16_t __attribute__ ((noinline)) cmd_segment_high_z(){
+  uint8_t segment;
+
+  // CRC_LENGTH + 1 byte expected
+  if( RF13MFIFOFL_L == 2 + 1) {
+
+    // pull one byte from the recieve FIFO
+    segment=RF13MRXF_L;
+
+    uint8_t bits = segment_to_bits(segment);
+    
+    // put in input mode for high z state
+    P1DIR &= ~bits & ~BIT0;
+
+    //Zero byte for success.
+    RF13MTXF_L = 0;
+    
+  } else {
+    // Error
+    RF13MRXF=1;
+  }
+
+  return 0;
+}
+
+// expects segments 1-7
+uint8_t segment_to_bits(uint8_t segment) {
+  return 1 << (segment-1);
+}
+
+
+
 /* And we need a patch table, and it has very strict rules about
    placement and alignment.
 
@@ -113,10 +188,9 @@ const uint16_t patchtable[0x12] =
    0xCECE, 0xCECE,
    0xCECE, 0xCECE,
    0xCECE, 0xCECE,
-   0xCECE, 0xCECE,
-   0xCECE, 0xCECE,
-   
-   (uint16_t) cmd_a3, 0x00A3, //Handler address and command number.
+   (uint16_t) cmd_segment_high_z, 0x00A3, //Handler address and command number.
+   (uint16_t) cmd_segment_on, 0x00A0, //Handler address and command number.
+   (uint16_t) cmd_segment_off, 0x00A1, //Handler address and command number.
    0xCECE,  //This ABSOLUTELY MUST be at 0xFFCE or your patch won't load.
   };
 
