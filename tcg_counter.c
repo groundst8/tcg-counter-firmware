@@ -97,6 +97,8 @@ uint16_t __attribute__ ((noinline)) cmd_segment_on(){
 
     uint8_t bits = segment_to_bits(segment);
 
+    // disable internal resistors
+    P1REN &= 0x00;
     // set output direction
     P1DIR |= bits | BIT0;
     // set specified segment 1.5V, set segment z common electrode = 0V
@@ -124,6 +126,8 @@ uint16_t __attribute__ ((noinline)) cmd_segment_off(){
 
     uint8_t bits = segment_to_bits(segment);
     
+    // disable internal resistors
+    P1REN &= 0x00;
     // set output direction
     P1DIR |= bits | BIT0;
     // set specified segment 0V, set segment z common electrode = 1.5V
@@ -151,6 +155,8 @@ uint16_t __attribute__ ((noinline)) cmd_segment_high_z(){
 
     uint8_t bits = segment_to_bits(segment);
     
+    // disable internal resistors
+    P1REN &= 0x00;
     // put in input mode for high z state
     P1DIR &= ~bits & ~BIT0;
 
