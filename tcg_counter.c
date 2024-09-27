@@ -167,7 +167,7 @@ uint16_t __attribute__ ((noinline)) cmd_segment_high_z(){
 
 // expects segments 1-7
 uint8_t segment_to_bits(uint8_t segment) {
-  return 1 << (segment-1);
+  return 1 << segment;
 }
 
 
