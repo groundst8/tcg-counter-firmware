@@ -21,10 +21,9 @@ CFLAGS = -mmcu=rf430frl152h -Wall \
          -Wno-unused-but-set-variable \
          -I. -I/home/runner/msp430-gcc/include \
          -Os
-		 --no-gc-sections -nostartfiles
 
 # Linker Flags
-LDFLAGS = -Wl,--no-gc-sections -T rf430frl152h.ld
+LDFLAGS = -Wl,--no-gc-sections -nostartfiles -T rf430frl152h.ld
 
 # Application files
 APPS = tcg_counter.txt
