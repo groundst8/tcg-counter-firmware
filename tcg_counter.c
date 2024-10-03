@@ -158,7 +158,7 @@ uint16_t __attribute__ ((noinline)) cmd_segment_high_z(){
     // disable internal resistors
     P1REN &= 0x00;
     // put in input mode for high z state
-    P1DIR &= ~bits & ~BIT0;
+    P1DIR &= ~bits;
 
     //Zero byte for success.
     RF13MTXF_L = 0;
