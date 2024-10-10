@@ -89,8 +89,8 @@ uint16_t __attribute__ ((noinline)) cmd_a3(){
 
 uint16_t __attribute__ ((noinline)) cmd_set_port1_output(){
   
-  // set all GPIOs to output direction
-  P1DIR |= 0xFF;
+  // set all GPIOs to output direction except bit 7
+  P1DIR |= 0x7F;
   
   //Zero byte for success.
   RF13MTXF_L = 0;
