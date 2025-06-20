@@ -9,8 +9,14 @@
 #define ERROR_UPDATE_IN_PROGRESS 1
 #define ERROR_UNEXPECTED_NFC_LENGTH 2
 
+// Display update configuration
+#ifndef SEGMENTS_PER_STEP_DEFAULT
+#define SEGMENTS_PER_STEP_DEFAULT 2
+#endif
+
 // Global variables
 volatile bool update_in_progress = false;
+volatile uint8_t segments_per_step = SEGMENTS_PER_STEP_DEFAULT;
 
 
 EventQueue event_queue;
@@ -30,6 +36,28 @@ void write_ones_digit(uint8_t segments);
 void write_tens_digit(uint8_t segments);
 void clear_tens_digit();
 
+void clear_ones_digit_sequential(uint8_t segsPerStep);
+void clear_tens_digit_sequential(uint8_t segsPerStep);
+void set_tens_digit_sequential(uint8_t segsPerStep, uint8_t segments);
+void set_ones_digit_sequential(uint8_t segsPerStep, uint8_t segments);
+void clear_digit_sequential(uint8_t portSel, uint8_t segsPerStep);
+void set_digit_sequential(uint8_t portSel,
+                          uint8_t segsPerStep,
+                          uint8_t segments);
+void clear_group(uint8_t portSel,
+                 uint8_t mask,
+                 uint16_t t_clear_ms);
+void set_group(uint8_t portSel,
+               uint8_t mask,
+               uint16_t t_set_ms);
+
+/*
+void drive_group(uint8_t portSel,
+                 uint8_t mask,
+                 uint16_t t_pre_ms,
+                 uint16_t t_set_ms);
+void write_digit_sequential(uint8_t segments, bool tensDigit);
+*/
 
 // 7-segment encoding lookup table
 // Each element represents the segments needed to display a digit
@@ -212,11 +240,16 @@ void update_display(uint8_t number) {
        {
            // clear out any previous value in this case
            // TODO: only do this if needed, will be switching away from this way in future
-           clear_tens_digit();
+           //clear_tens_digit();
+           clear_tens_digit_sequential(2);
        } else {
-           write_tens_digit(tens_code);
+           //write_tens_digit(tens_code);
+           clear_tens_digit_sequential(2);
+           set_tens_digit_sequential(2, tens_code);
        }
-       write_ones_digit(ones_code);
+       //write_ones_digit(ones_code);
+       clear_ones_digit_sequential(2);
+       set_ones_digit_sequential(2, ones_code);
     }
 }
 
@@ -281,6 +314,7 @@ void write_tens_digit(uint8_t segments) {
     delay(100); // allow time for caps to charge before proceeding
 }
 
+
 void clear_tens_digit() {
     //clear
     //set to outputs
@@ -294,6 +328,181 @@ void clear_tens_digit() {
     delay(100); // allow time for caps to charge before proceeding
 }
 
+/**
+ * Clear every segment of the tens digit, but only <segsPerStep>
+ * electrodes at a time to keep the in-rush low.
+ *
+ * segsPerStep = 1…7  (2 is a sensible value for NFC-powered updates)
+ */
+void clear_tens_digit_sequential(uint8_t segsPerStep)
+{
+    // tens digit PORT0 so portSel = 0
+    clear_digit_sequential(0, segsPerStep);
+
+}
+
+void clear_ones_digit_sequential(uint8_t segsPerStep)
+{
+    // ones digit PORT1 so portSel = 1
+    clear_digit_sequential(1, segsPerStep);
+
+}
+
+
+void clear_digit_sequential(uint8_t portSel, uint8_t segsPerStep) {
+
+    uint8_t i = 0;
+    uint8_t b = 0;
+
+    for (i = 0; i < 7; i += segsPerStep)
+    {
+        uint8_t mask = 0;
+        for (b = 0; b < segsPerStep && (i + b) < 7; ++b)
+            mask |= (1u << (i + b));
+
+        // TODO: adjust t_clear_ms proportional to number of segments being updated
+        clear_group(portSel, mask, 100);
+    }
+}
+
+void set_tens_digit_sequential(uint8_t segsPerStep, uint8_t segments)
+{
+    // tens digit PORT0 so portSel = 0
+    set_digit_sequential(0, segsPerStep, segments);
+
+}
+
+void set_ones_digit_sequential(uint8_t segsPerStep, uint8_t segments)
+{
+    // tens digit PORT1 so portSel = 1
+    set_digit_sequential(1, segsPerStep, segments);
+
+}
+
+
+/******************************************************************************
+ *  Turn-on helper: sequentially SET the requested segments
+ *
+ *  @param portSel      0 → segments on PORT0 (tens digit)
+ *                      1 → segments on PORT1 (ones digit)
+ *  @param segsPerStep  1…7  - how many segments you want to switch at once
+ *  @param segments     bit pattern you ultimately want ON (gfedcba)
+ *
+ *  Call order:
+ *      clear_digit_sequential(portSel, segsPerStep);   // phase-1: clear all
+ *      set_digit_sequential  (portSel, segsPerStep, pattern);  // phase-2: set
+ ******************************************************************************/
+void set_digit_sequential(uint8_t portSel,
+                          uint8_t segsPerStep,
+                          uint8_t segments)
+{
+    uint8_t i, b;
+
+    for (i = 0; i < 7; i += segsPerStep)
+    {
+        /* build the bit-mask for this group (up to segsPerStep bits) */
+        uint8_t mask = 0;
+        for (b = 0; b < segsPerStep && (i + b) < 7; ++b)
+            mask |= (1u << (i + b));
+
+        /* keep only the bits we actually need to light in this group */
+        uint8_t groupMask = mask & segments;
+        if (groupMask == 0)
+            continue;                       // nothing to do for this group
+
+        /* TODO: scale t_set_ms with group size if desired               *
+         * For now we use a fixed 150 ms pulse; tweak for your display.  */
+        set_group(portSel, groupMask, 150);
+    }
+}
+
+
+/**
+ * Drive the selected segments low while COM stays high, then Hi-Z them.
+ *
+ *  portSel     – 0 for P0.x (tens digit), 1 for P1.x (ones digit)
+ *  mask        – bit-mask of the one-or-two segments we’re clearing
+ *  t_clear_ms  – how long to keep the field applied
+ */
+void clear_group(uint8_t portSel,
+                 uint8_t mask,
+                 uint16_t t_clear_ms)
+{
+    const uint8_t COM_MASK   = BIT7;                          // COM = P0.7
+    const uint8_t cfgReg     = (portSel == 0) ? CONFIG_PORT0_REG
+                                              : CONFIG_PORT1_REG;
+    const uint8_t outReg     = (portSel == 0) ? OUTPUT_PORT0_REG
+                                              : OUTPUT_PORT1_REG;
+
+    // COM - common electrode is on PORT0
+    if (portSel == 0) {
+        /* --- drive: COM↑, segments↓ -------------------------------- */
+        write_tcal9539_register(cfgReg, ~(COM_MASK | mask));      // COM + seg = outputs
+        write_tcal9539_register(outReg, COM_MASK | ~mask);         // COM = high, segs = low (Vd = −1.5 V)
+    } else {
+       write_tcal9539_register(CONFIG_PORT0_REG, ~COM_MASK);
+       write_tcal9539_register(cfgReg, ~mask);
+       //common electrode high, everything else low for -1.5V across segments
+       //always port 0
+       write_tcal9539_register(OUTPUT_PORT0_REG, COM_MASK);
+       write_tcal9539_register(outReg, ~mask);
+    }
+
+    delay(t_clear_ms);
+
+    /* --- Hi-Z PORT1 first */
+    if (portSel == 1) {
+        write_tcal9539_register(cfgReg, 0xFF);
+    }
+
+    // will always need to make Hi-Z since COM always used
+    write_tcal9539_register(CONFIG_PORT0_REG, 0xFF);          // all Hi-Z
+    delay(50);                                                // small pause
+}
+
+/**
+ * Drive the selected segments low while COM stays high, then Hi-Z them.
+ *
+ *  portSel     – 0 for P0.x (tens digit), 1 for P1.x (ones digit)
+ *  mask        – bit-mask of the one-or-two segments we’re clearing
+ *  t_set_ms  – how long to keep the field applied
+ */
+void set_group(uint8_t portSel,
+               uint8_t mask,
+               uint16_t t_set_ms)
+{
+    const uint8_t COM_MASK   = BIT7;                          // COM = P0.7
+    const uint8_t cfgReg     = (portSel == 0) ? CONFIG_PORT0_REG
+                                              : CONFIG_PORT1_REG;
+    const uint8_t outReg     = (portSel == 0) ? OUTPUT_PORT0_REG
+                                              : OUTPUT_PORT1_REG;
+
+    // COM - common electrode is on PORT0
+    if (portSel == 0) {
+        /* --- drive: COM low, segments high -------------------------------- */
+        write_tcal9539_register(cfgReg, ~(COM_MASK | mask));  // COM + seg = outputs
+        write_tcal9539_register(outReg, mask);                // COM low, segs high (Vd = 1.5 V)
+    } else {
+        write_tcal9539_register(CONFIG_PORT0_REG, ~COM_MASK);
+        write_tcal9539_register(cfgReg, ~mask);
+        //common electrode low, everything else high for 1.5V across segments
+        //always port 0
+        write_tcal9539_register(OUTPUT_PORT0_REG, ~COM_MASK);
+        write_tcal9539_register(outReg, mask);
+    }
+
+    delay(t_set_ms);
+
+    /* --- Hi-Z PORT1 first */
+    if (portSel == 1) {
+        write_tcal9539_register(cfgReg, 0xFF);
+    }
+
+    // will always need to make Hi-Z since COM always used
+    write_tcal9539_register(CONFIG_PORT0_REG, 0xFF);                    // all Hi-Z
+    delay(50);                                                // small pause
+
+}
 
 /*******************************Driver/Patch Table Format*******************************/
 /*
