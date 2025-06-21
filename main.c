@@ -226,8 +226,12 @@ void update_display(uint8_t number) {
     // could potentially represent 100 as 00 but for now will cap at 99
     if (number > 99) {
        // write segments as oF to indicate overflow
-       write_tens_digit(seven_segment_oF[0]);
-       write_ones_digit(seven_segment_oF[1]);
+       //write_tens_digit(seven_segment_oF[0]);
+       //write_ones_digit(seven_segment_oF[1]);
+       clear_tens_digit_sequential(2);
+       set_tens_digit_sequential(2, seven_segment_oF[0]);
+       clear_ones_digit_sequential(2);
+       set_ones_digit_sequential(2, seven_segment_oF[1]);
     } else {
        uint8_t tens = number / 10;      // Extract tens digit
        uint8_t ones = number % 10;      // Extract ones digit
@@ -361,7 +365,7 @@ void clear_digit_sequential(uint8_t portSel, uint8_t segsPerStep) {
             mask |= (1u << (i + b));
 
         // TODO: adjust t_clear_ms proportional to number of segments being updated
-        clear_group(portSel, mask, 100);
+        clear_group(portSel, mask, 75);
     }
 }
 
@@ -412,7 +416,7 @@ void set_digit_sequential(uint8_t portSel,
 
         /* TODO: scale t_set_ms with group size if desired               *
          * For now we use a fixed 150 ms pulse; tweak for your display.  */
-        set_group(portSel, groupMask, 150);
+        set_group(portSel, groupMask, 250);
     }
 }
 
@@ -457,7 +461,7 @@ void clear_group(uint8_t portSel,
 
     // will always need to make Hi-Z since COM always used
     write_tcal9539_register(CONFIG_PORT0_REG, 0xFF);          // all Hi-Z
-    delay(50);                                                // small pause
+    //delay(50);                                                // small pause
 }
 
 /**
@@ -500,7 +504,7 @@ void set_group(uint8_t portSel,
 
     // will always need to make Hi-Z since COM always used
     write_tcal9539_register(CONFIG_PORT0_REG, 0xFF);                    // all Hi-Z
-    delay(50);                                                // small pause
+    //delay(50);                                                // small pause
 
 }
 
