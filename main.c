@@ -51,6 +51,27 @@ void set_group(uint8_t portSel,
                uint8_t mask,
                uint16_t t_set_ms);
 
+
+void classify_segments(uint8_t prevDigit,
+                       uint8_t nextDigit,
+                       uint8_t *switchOnMask,
+                       uint8_t *switchOffMask,
+                       uint8_t *refreshMask);
+uint8_t lowest_one(uint8_t x);
+typedef void (*SegmentDriverFn)(uint8_t portSel, uint8_t mask, uint16_t pulse_ms);
+void bucket_fill_sequential_segment_driver(uint8_t portSel,
+                                uint8_t segsPerStep,
+                                uint8_t segments,
+                                SegmentDriverFn driver,
+                                uint8_t pulse_time_ms);
+void positive_v_driver(uint8_t portSel,
+                       uint8_t mask,
+                       uint16_t t_set_ms);
+void negative_v_driver(uint8_t portSel,
+                       uint8_t mask,
+                       uint16_t t_clear_ms);
+
+
 /*
 void drive_group(uint8_t portSel,
                  uint8_t mask,
@@ -506,6 +527,173 @@ void set_group(uint8_t portSel,
     write_tcal9539_register(CONFIG_PORT0_REG, 0xFF);                    // all Hi-Z
     //delay(50);                                                // small pause
 
+}
+
+/**
+ *  Generate bit masks to classify segments by update type required to transition from
+ *  previous to next digit
+ *
+ *  prevDigit  – bitmap of the currently lit segments for digit  (bits 0-6 = g-f-e-d-c-b-a)
+ *  nextDigit  – bitmap of the segments for the next digit
+ *
+ *  switchOnMask  – segments that must receive a +VON pulse (OFF → ON)
+ *  switchOffMask – segments that must receive a –VOFF pulse (ON  → OFF)
+ *  refreshMask   – segments that stay ON and therefore need a refresh pulse
+ *
+ *  Any segment that is 0 in all three masks needs no action.
+ */
+void classify_segments(uint8_t prevDigit,
+                       uint8_t nextDigit,
+                       uint8_t *switchOnMask,
+                       uint8_t *switchOffMask,
+                       uint8_t *refreshMask)
+{
+
+    // OFF → OFF
+    // No operation
+
+    // OFF → ON
+    *switchOnMask  = ~prevDigit & nextDigit;
+
+    // ON → OFF
+    *switchOffMask = prevDigit & ~nextDigit;
+
+    // ON → ON  (refresh)
+    *refreshMask   = prevDigit & nextDigit;
+}
+
+void transition_digit(uint8_t prevDigit, uint8_t nextDigit, uint8_t portSel, uint8_t segsPerStep) {
+    uint8_t switchOnMask = 0;
+    uint8_t switchOffMask = 0;
+    uint8_t refreshMask = 0;
+
+    classify_segments(prevDigit, nextDigit, &switchOnMask, &switchOffMask, &refreshMask);
+
+    // If these are OFF → ON segment transitions, do them sequentially
+    if (switchOnMask) {
+        bucket_fill_sequential_segment_driver(portSel, segsPerStep, switchOnMask, positive_v_driver, 250);
+    }
+
+    // If these are ON → OFF segment transitions, do them sequentially
+    if (switchOffMask) {
+        bucket_fill_sequential_segment_driver(portSel, segsPerStep, switchOffMask, negative_v_driver, 75);
+    }
+
+    // If these are ON → ON segment transitions, do them sequentially
+    if (refreshMask) {
+        bucket_fill_sequential_segment_driver(portSel, segsPerStep, refreshMask, positive_v_driver, 100);
+    }
+
+    // OFF → OFF
+    // No operation needed
+
+}
+
+
+uint8_t lowest_one(uint8_t x)
+{
+    return x & (uint8_t)(-x);          // two’s-complement trick
+}
+
+void bucket_fill_sequential_segment_driver(uint8_t portSel,
+                                           uint8_t segsPerStep,
+                                           uint8_t segments,
+                                           SegmentDriverFn driver,
+                                           uint8_t pulse_time_ms)
+{
+    uint8_t pending = segments & 0x7F;       /* keep only a-g */
+
+    while (pending)
+    {
+        uint8_t groupMask = 0;
+        uint8_t filled    = 0;
+
+        /* Pull up to segsPerStep lowest bits into this bucket */
+        while (pending && filled < segsPerStep)
+        {
+            uint8_t bit   = lowest_one(pending);
+            groupMask    |= bit;
+            pending      &= ~bit;            /* remove from todo-set */
+            ++filled;
+        }
+
+        // drive segments
+        driver(portSel, groupMask, pulse_time_ms);
+    }
+}
+
+
+void positive_v_driver(uint8_t portSel,
+                       uint8_t mask,
+                       uint16_t t_set_ms)
+{
+    const uint8_t COM_MASK   = BIT7;                          // COM = P0.7
+    const uint8_t cfgReg     = (portSel == 0) ? CONFIG_PORT0_REG
+                                              : CONFIG_PORT1_REG;
+    const uint8_t outReg     = (portSel == 0) ? OUTPUT_PORT0_REG
+                                              : OUTPUT_PORT1_REG;
+
+    // COM - common electrode is on PORT0
+    if (portSel == 0) {
+        /* --- drive: COM low, segments high -------------------------------- */
+        write_tcal9539_register(cfgReg, ~(COM_MASK | mask));  // COM + seg = outputs
+        write_tcal9539_register(outReg, mask);                // COM low, segs high (Vd = 1.5 V)
+    } else {
+        write_tcal9539_register(CONFIG_PORT0_REG, ~COM_MASK);
+        write_tcal9539_register(cfgReg, ~mask);
+        //common electrode low, everything else high for 1.5V across segments
+        //always port 0
+        write_tcal9539_register(OUTPUT_PORT0_REG, ~COM_MASK);
+        write_tcal9539_register(outReg, mask);
+    }
+
+    delay(t_set_ms);
+
+    /* --- Hi-Z PORT1 first */
+    if (portSel == 1) {
+        write_tcal9539_register(cfgReg, 0xFF);
+    }
+
+    // will always need to make Hi-Z since COM always used
+    write_tcal9539_register(CONFIG_PORT0_REG, 0xFF);                    // all Hi-Z
+    //delay(50);                                                // small pause
+
+}
+
+void negative_v_driver(uint8_t portSel,
+                       uint8_t mask,
+                       uint16_t t_clear_ms)
+{
+    const uint8_t COM_MASK   = BIT7;                          // COM = P0.7
+    const uint8_t cfgReg     = (portSel == 0) ? CONFIG_PORT0_REG
+                                              : CONFIG_PORT1_REG;
+    const uint8_t outReg     = (portSel == 0) ? OUTPUT_PORT0_REG
+                                              : OUTPUT_PORT1_REG;
+
+    // COM - common electrode is on PORT0
+    if (portSel == 0) {
+        /* --- drive: COM↑, segments↓ -------------------------------- */
+        write_tcal9539_register(cfgReg, ~(COM_MASK | mask));      // COM + seg = outputs
+        write_tcal9539_register(outReg, COM_MASK | ~mask);         // COM = high, segs = low (Vd = −1.5 V)
+    } else {
+       write_tcal9539_register(CONFIG_PORT0_REG, ~COM_MASK);
+       write_tcal9539_register(cfgReg, ~mask);
+       //common electrode high, everything else low for -1.5V across segments
+       //always port 0
+       write_tcal9539_register(OUTPUT_PORT0_REG, COM_MASK);
+       write_tcal9539_register(outReg, ~mask);
+    }
+
+    delay(t_clear_ms);
+
+    /* --- Hi-Z PORT1 first */
+    if (portSel == 1) {
+        write_tcal9539_register(cfgReg, 0xFF);
+    }
+
+    // will always need to make Hi-Z since COM always used
+    write_tcal9539_register(CONFIG_PORT0_REG, 0xFF);          // all Hi-Z
+    //delay(50);                                                // small pause
 }
 
 /*******************************Driver/Patch Table Format*******************************/
