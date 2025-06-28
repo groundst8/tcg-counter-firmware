@@ -1,0 +1,35 @@
+---
+:source:
+  :file: test/test_classifier.c
+  :dirname: test
+  :basename: test_classifier.c
+:successes:
+- :test: test_SingleSegmentOn
+  :line: 38
+  :message: ''
+  :unity_test_time: 0
+- :test: test_Digit1to8
+  :line: 48
+  :message: ''
+  :unity_test_time: 0
+- :test: test_BlankTo8
+  :line: 58
+  :message: ''
+  :unity_test_time: 0
+- :test: test_8toBlank
+  :line: 67
+  :message: ''
+  :unity_test_time: 0
+- :test: test_Digit7Refresh
+  :line: 76
+  :message: ''
+  :unity_test_time: 0
+:failures: []
+:ignores: []
+:counts:
+  :total: 5
+  :passed: 5
+  :failed: 0
+  :ignored: 0
+:stdout: []
+:time: 0.2508680000901222
