@@ -37,6 +37,11 @@ const uint8_t seven_segment_oF[2] = {
   0b1110001,  // F
 };
 
+uint8_t lowest_one(uint8_t x)
+{
+    return x & (uint8_t)(-x);          // two’s-complement trick
+}
+
 
 /**
  *  Generate bit masks to classify segments by update type required to transition from
@@ -69,4 +74,41 @@ void classify_segments(uint8_t prevDigit,
 
     // ON → ON  (refresh)
     *refreshMask   = prevDigit & nextDigit;
+}
+
+
+/**
+ * bucket_fill_sequential_segment_driver()
+ *
+ *  • Always drives ≤ segsPerStep segments at once → flat inrush current.
+ *  • Greedy “lowest bits first” packing → minimum pulse count.
+ *  • Returns the pulse count so callers/tests can verify work done.
+ */
+uint8_t bucket_fill_sequential_segment_driver(uint8_t        portSel,
+                                              uint8_t        segsPerStep,
+                                              uint8_t        segments,
+                                              SegmentDriverFn driver,
+                                              uint8_t        pulse_time_ms)
+{
+    uint8_t pending   = segments & 0x7F;   /* mask off DP or stray bits     */
+    uint8_t pulses    = 0;
+
+    while (pending)
+    {
+        uint8_t groupMask = 0;
+        uint8_t filled    = 0;
+
+        /* Pull up to segsPerStep lowest bits into this bucket  */
+        while (pending && filled < segsPerStep)
+        {
+            uint8_t bit  = lowest_one(pending);
+            groupMask   |= bit;
+            pending     &= (uint8_t)~bit;   /* remove from todo-set */
+            ++filled;
+        }
+
+        driver(portSel, groupMask, pulse_time_ms);
+        ++pulses;
+    }
+    return pulses;
 }

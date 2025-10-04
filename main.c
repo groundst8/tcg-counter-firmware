@@ -53,7 +53,7 @@ void set_group(uint8_t portSel,
                uint16_t t_set_ms);
 
 
-
+/*
 uint8_t lowest_one(uint8_t x);
 typedef void (*SegmentDriverFn)(uint8_t portSel, uint8_t mask, uint16_t pulse_ms);
 void bucket_fill_sequential_segment_driver(uint8_t portSel,
@@ -61,6 +61,7 @@ void bucket_fill_sequential_segment_driver(uint8_t portSel,
                                 uint8_t segments,
                                 SegmentDriverFn driver,
                                 uint8_t pulse_time_ms);
+                                */
 void positive_v_driver(uint8_t portSel,
                        uint8_t mask,
                        uint16_t t_set_ms);
@@ -76,8 +77,6 @@ void drive_group(uint8_t portSel,
                  uint16_t t_set_ms);
 void write_digit_sequential(uint8_t segments, bool tensDigit);
 */
-
-
 
 
 int main(void)
@@ -527,31 +526,33 @@ void transition_digit(uint8_t prevDigit, uint8_t nextDigit, uint8_t portSel, uin
 
 }
 
-
+/*
 uint8_t lowest_one(uint8_t x)
 {
     return x & (uint8_t)(-x);          // two’s-complement trick
 }
+*/
 
+/*
 void bucket_fill_sequential_segment_driver(uint8_t portSel,
                                            uint8_t segsPerStep,
                                            uint8_t segments,
                                            SegmentDriverFn driver,
                                            uint8_t pulse_time_ms)
 {
-    uint8_t pending = segments & 0x7F;       /* keep only a-g */
+    uint8_t pending = segments & 0x7F;       // keep only a-g
 
     while (pending)
     {
         uint8_t groupMask = 0;
         uint8_t filled    = 0;
 
-        /* Pull up to segsPerStep lowest bits into this bucket */
+        // Pull up to segsPerStep lowest bits into this bucket
         while (pending && filled < segsPerStep)
         {
             uint8_t bit   = lowest_one(pending);
             groupMask    |= bit;
-            pending      &= ~bit;            /* remove from todo-set */
+            pending      &= ~bit;            remove from todo-set
             ++filled;
         }
 
@@ -559,6 +560,7 @@ void bucket_fill_sequential_segment_driver(uint8_t portSel,
         driver(portSel, groupMask, pulse_time_ms);
     }
 }
+*/
 
 
 void positive_v_driver(uint8_t portSel,

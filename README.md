@@ -1,1 +1,7 @@
-# rf430frl152hevm-devboard
+# TCG Counter Firmware
+
+## Running Tests
+
+Unit tests are run using Ceedling and Unity:
+
+`ceedling test:all`
